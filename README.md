@@ -5,7 +5,7 @@ The baseline approach for this competition was to use a [Sound Event Detection](
 
 The objective of this competition was to identify 24 classes of species from audio recordings. The approach was to convert audio recordings into [Mel Spectrograms](https://librosa.org/doc/main/generated/librosa.feature.melspectrogram.html) and then use image classification models offered from TensorFlow for the classification task. A Mel spectrogram from an audio clip within the dataset is shown below; this spectrogram shows a few different species as determined by the various visible sound patterns.
 
-![](/home/dunlap/GitHub/Rainforest---Audio-Classificaiton/Images/Mel_Spectrogram.png)
+![](https://github.com/mddunlap924/Rainforest---Audio-Classificaiton/blob/main/Images/Mel_Spectrogram.png)
 
 In this repository an one-dimensional convolutional neural network (1D-CNN) is used to assign a probability from 0-1 for the detection of the chirp waveform. We ensemble this 1D-CNN with other two-dimensional (2D) spectrogram image classification techniques to boost our score. I provide a 2D CQT transform approach [here](https://github.com/mddunlap924/G2Net_Spectrogram-Classification) which uses image classification network architecture(s).
 
@@ -17,7 +17,7 @@ The data is ~62GB and can be found on [Kaggle](https://www.kaggle.com/c/rfcx-spe
 
 A Sound Event Detection (SED) [[1][1], [2][2]] task predicts the class and location of the class within an audio clip. The following image illustrates a SED task and was taken from [[1][1]].
 
-![](/home/dunlap/GitHub/Rainforest---Audio-Classificaiton/Images/SED.png)
+![](https://github.com/mddunlap924/Rainforest---Audio-Classificaiton/blob/main/Images/SED.png)
 
 A SED model requires a custom architecture and loss function as provided in [model_setup_sed.py]().
 
