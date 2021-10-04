@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 from classification_models.tfkeras import Classifiers
-import efficientnet.tfkeras as eff
 
 
+# Seed everything
 def seed_everything(seed=42):
     random.seed(seed)
     np.random.seed(seed)
@@ -47,7 +47,6 @@ def preprocess(image, label, seed, inputs, training=False):
 
     image = tf.expand_dims(image, axis=-1)
     image = tf.image.resize(image, [height, width])
-    # image = tf.image.per_image_standardization(image)
     image = (image - tf.reduce_min(image)) / (
                 tf.reduce_max(image) - tf.reduce_min(image)) * 255.0  # rescale to [0, 255]
     image = tf.image.grayscale_to_rgb(image)
@@ -103,22 +102,17 @@ def preprocess(image, label, seed, inputs, training=False):
         image = tf.keras.applications.xception.preprocess_input(image)
         return image, label
     elif inputs.model == 'DenseNet121':
-        # print('DenseNet121 Preprocessing')
         image = tf.keras.applications.densenet.preprocess_input(image)
         return image, label
     elif inputs.model == 'VGG16':
-        # print('DenseNet121 Preprocessing')
         image = tf.keras.applications.vgg16.preprocess_input(image)
         return image, label
     elif inputs.model == 'VGG19':
-        # print('DenseNet121 Preprocessing')
         image = tf.keras.applications.vgg19.preprocess_input(image)
         return image, label
     else:
         print('Model Type Not Found')
-
     image = preprocess_input(image)
-    # print('Exiting preprocessing NOT at efficinet or mobilenet')
     return image, label
 
 
@@ -129,21 +123,18 @@ def preprocess_mixup(ds):
         indice = tf.random.shuffle(indice)
         sinp = tf.gather(inp, indice, axis=0)
         starg = tf.gather(targ, indice, axis=0)
-
         alpha = 0.2
         t = tf.compat.v1.distributions.Beta(alpha, alpha).sample([len(inp)])
         tx = tf.reshape(t, [-1, 1, 1, 1])
         ty = tf.reshape(t, [-1, 1])
         x = inp * tx + sinp * (1 - tx)
         y = targ * ty + starg * (1 - ty)
-        #     y = tf.minimum(targ + starg, 1.0) # for multi-label???
         return x, y
 
 
 # Plot preprocessed images to check preprocessing
 def check_image(dataset, xtrain):
     plt.ion()
-    # fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2)
     plt.figure(1)
 
     count = 0
@@ -171,15 +162,12 @@ def check_image(dataset, xtrain):
         plt.colorbar(pos1, ax=ax1)
         plt.draw()
         plt.waitforbuttonpress()
-        # plt.pause(0.1)
-
         count += 1
 
 
 # Plot preprocessed images to check preprocessing
 def check_test_image(dataset, xtrain):
     plt.ion()
-    # fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2)
     plt.figure(1)
 
     count = 0
@@ -209,15 +197,12 @@ def check_test_image(dataset, xtrain):
             plt.colorbar(pos1, ax=ax1)
             plt.draw()
             plt.waitforbuttonpress()
-            # plt.pause(0.1)
-
             count += 1
 
 
 # Plot preprocessed images to check preprocessing
 def check_test_image2(dataset, xtrain, num_windows):
     plt.ion()
-    # fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2)
     plt.figure(1)
 
     count = 0
@@ -244,6 +229,4 @@ def check_test_image2(dataset, xtrain, num_windows):
         plt.colorbar(pos1, ax=ax1)
         plt.draw()
         plt.waitforbuttonpress()
-        # plt.pause(0.1)
-
         count += 1

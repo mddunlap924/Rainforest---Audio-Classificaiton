@@ -1,6 +1,4 @@
 import tensorflow as tf
-# tf.config.experimental_run_functions_eagerly(True)
-# tf.config.run_functions_eagerly(True)
 import tensorflow_addons as tfa
 from lwlrap_clip import LWLRAP_CLIP
 from lwlrap_frame import LWLRAP_FRAME
@@ -11,38 +9,31 @@ from classification_models.tfkeras import Classifiers
 from cosine_warm_up import WarmUpCosineDecayScheduler
 import tensorflow_probability as tfp
 import math
-import efficientnet.tfkeras as eff
-from tensorflow.keras.callbacks import Callback
-import numpy as np
+
 
 ResNet34, _ = Classifiers.get('resnet34')
 ResNet18, _ = Classifiers.get('resnet18')
 
 
-# BCE = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-
+# Dice loss function
 def frame_dice_loss(y_true, y_pred, smooth=1e-6):
     # https://lars76.github.io/2018/09/27/loss-functions-for-segmentation.html
-    # y_pred = y_true * y_pred
     y_true = tf.keras.backend.flatten(y_true)
     y_pred = tf.keras.backend.flatten(y_pred)
-
     BCE = tf.keras.losses.BinaryCrossentropy(from_logits=False)
     bce = BCE(y_true, y_pred)
     intersection = tf.keras.backend.sum(y_true * y_pred)
     dice_loss = 1 - (2 * intersection + smooth) / (tf.keras.backend.sum(y_true) + tf.keras.backend.sum(y_pred) + smooth)
     Dice_BCE = bce + dice_loss
-
     return Dice_BCE
 
 
+# Custom Binarycrossentrophy loss function
 def custom_binary_loss(y_true, y_pred):
     # https://github.com/tensorflow/tensorflow/blob/v2.3.1/tensorflow/python/keras/backend.py#L4826
     y_true = tf.cast(tf.math.reduce_max(y_true, axis=-2), dtype=tf.float32)
     y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
-
     y_true_idx = tf.where(y_true > 0)
-
     term_0 = (1 - y_true) * K.log(1 - y_pred + K.epsilon())  # Cancels out when target is 1
     term_1 = y_true * K.log(y_pred + K.epsilon())  # Cancels out when target is 0
     t_random = tf.random.uniform(shape=[24], minval=0.95, maxval=1.0, dtype=tf.float32, seed=10)
@@ -51,6 +42,7 @@ def custom_binary_loss(y_true, y_pred):
     return -K.mean(term_0 + term_1, axis=1)
 
 
+# Symmetric cross entropy
 # https://github.com/YisenWang/symmetric_cross_entropy_for_noisy_labels/blob/master/train_models.py
 def symmetric_cross_entropy(y_true, y_pred):
     alpha = 6.0
@@ -66,44 +58,29 @@ def symmetric_cross_entropy(y_true, y_pred):
     y_true_2 = tf.clip_by_value(y_true_2, 1e-4, 1.0)
     loss = alpha * tf.reduce_mean(-tf.reduce_sum(y_true_1 * tf.math.log(y_pred_1), axis=-1)) + \
            beta * tf.reduce_mean(-tf.reduce_sum(y_pred_2 * tf.math.log(y_true_2), axis=-1))
-
     return loss
 
 
+# Symmetric cross entropy by frame
 def symmetric_cross_entropy_frame(y_true, y_pred):
     alpha = 6.0
     beta = 1.0
-
     y_true_1 = y_true
     y_pred_1 = y_pred
-
     y_true_2 = y_true
     y_pred_2 = y_pred
-
     y_pred_1 = tf.clip_by_value(y_pred_1, 1e-7, 1.0)
     y_true_2 = tf.clip_by_value(y_true_2, 1e-4, 1.0)
     loss = alpha * tf.reduce_mean(-tf.reduce_sum(y_true_1 * tf.math.log(y_pred_1), axis=-1)) + \
            beta * tf.reduce_mean(-tf.reduce_sum(y_pred_2 * tf.math.log(y_true_2), axis=-1))
-
     return loss
 
 
 # Framewise Output - Custom loss function
 def frame_loss_bce(y_true, y_pred):
-    # y_pred_ = y_true * y_pred
-    y_pred_ = y_pred
+    y_pred_ = y_true * y_pred
     y_true_ = y_true
-    # y_true_ = tf.keras.backend.flatten(y_true_)
-    # y_pred_ = tf.keras.backend.flatten(y_pred_)
-    # y_pred_ = tf.math.reduce_max(y_pred_, axis=-2)
-    # y_true_ = tf.math.reduce_max(y_true, axis=-2)
-
-    # y_true_ = y_true
-    # y_pred_ = y_pred
-
     BCE = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-    # BCE = tfa.losses.SigmoidFocalCrossEntropy(from_logits=False, alpha=0.75)
-    # CCE = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
     frame_loss = BCE(y_true_, y_pred_)
     return frame_loss
 
@@ -119,13 +96,10 @@ def clip_loss_bce(y_true, y_pred):
 
 # Masked Loss Funcation
 from keras import backend as K
-
-
 def masked_loss_function(y_true, y_pred):
-    # mask_value = tf.constant(-1.0)
-    # mask = K.cast(K.not_equal(y_true, mask_value), K.floatx())
-    # bce = K.binary_crossentropy(y_true * mask, y_pred * mask)
-    bce = K.binary_crossentropy(y_true, y_pred * y_true)
+    mask_value = tf.constant(-1.0)
+    mask = K.cast(K.not_equal(y_true, mask_value), K.floatx())
+    bce = K.binary_crossentropy(y_true * mask, y_pred * mask)
     return bce
 
 
@@ -194,10 +168,8 @@ def sed_model(inputs):
 
     for layer in base_model.layers:
         if inputs.base_trainable:
-            # print(f'Base Layers are Trainable')
             layer.trainable = inputs.base_trainable
         else:
-            # print(f'Base Layers are NOT Trainable')
             layer.trainable = False
 
     # Aggregate over Frequency Axis
@@ -265,124 +237,11 @@ def sed_model(inputs):
     return model
 
 
-#
-# # SED Models
-# def sed_model(inputs):
-#     METRICS = [[LWLRAP_FRAME(24)], [LWLRAP_CLIP(24)]]
-#     interp_width = inputs.width
-#     data_format = 'channels_last'
-#
-#     # Select model
-#     if inputs.model == 'ResNet34':
-#         height, width = 224, 512
-#         base_model = ResNet34(input_shape=(height, width, 3),
-#                               include_top=False,
-#                               weights='imagenet')
-#     elif inputs.model == 'ResNet18':
-#         height, width = 224, 512
-#         base_model = ResNet18(input_shape=(height, width, 3),
-#                               include_top=False,
-#                               weights='imagenet')
-#     elif inputs.model == 'EfficientNetB0':
-#         height, width = 224, 512
-#         base_model = tf.keras.applications.EfficientNetB0(input_shape=(height, width, 3),
-#                                                           include_top=False,
-#                                                           weights='imagenet')
-#     elif inputs.model == 'EfficientNetB3':
-#         height, width = 300, 600
-#         base_model = tf.keras.applications.EfficientNetB3(input_shape=(height, width, 3),
-#                                                           include_top=False,
-#                                                           weights='imagenet')
-#     elif inputs.model == 'MobileNetV2':
-#         height, width = 224, 512
-#         base_model = tf.keras.applications.MobileNetV2(input_shape=(height, width, 3),
-#                                                        include_top=False,
-#                                                        weights='imagenet')
-#     elif inputs.model == 'DenseNet121':
-#         height, width = 224, 512
-#         base_model = tf.keras.applications.DenseNet121(input_shape=(height, width, 3),
-#                                                        include_top=False,
-#                                                        weights='imagenet')
-#
-#     for layer in base_model.layers:
-#         if inputs.base_trainable:
-#             # print(f'Base Layers are Trainable')
-#             layer.trainable = inputs.base_trainable
-#         else:
-#             # print(f'Base Layers are NOT Trainable')
-#             layer.trainable = False
-#
-#     # Aggregate over Frequency Axis
-#     x = tf.reduce_mean(base_model.output, axis=1)
-#     # (Batch Size, Time, Filters)
-#
-#     # # Max and Avg. Over the Filter Axis
-#     x1 = tf.keras.layers.MaxPooling1D(pool_size=3, strides=1, padding='same', data_format=data_format)(x)
-#     x2 = tf.keras.layers.AveragePooling1D(pool_size=3, strides=1, padding='same', data_format=data_format)(x)
-#     x = x1 + x2
-#     # x = tf.keras.layers.Dropout(0.5)(x)
-#     # xa = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(128, activation='tanh', return_sequences=True))(x)
-#     # xb = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(128, activation='sigmoid', return_sequences=True))(x)
-#     # x = tf.keras.layers.concatenate([xa, xb])
-#
-#     if inputs.fc_layer is not None:
-#         # x = tf.keras.layers.BatchNormalization()(x)
-#         x = tf.keras.layers.Dropout(inputs.fc_layer['dropout0'])(x)
-#         x = tf.keras.layers.Dense(inputs.fc_layer['num_hidden'], activation='relu')(x)
-#         # x = tf.keras.layers.BatchNormalization()(x)
-#         x = tf.keras.layers.Dropout(inputs.fc_layer['dropout1'])(x)
-#
-#     # Classifier / Tagging / Segmentwise
-#     # segmentwise_output = tf.keras.layers.Dense(24, activation='sigmoid', name="segmentwise_output")(x)
-#     segmentwise_output = tf.keras.layers.Dense(24, activation='sigmoid',
-#                                                name="segmentwise_output",
-#                                                bias_initializer=tf.keras.initializers.Constant(
-#                                                    inputs.bias_initializer))(x)
-#     # Attention Module / Class Probability with Softmax
-#     norm_att = tf.keras.layers.Dense(24, name="start_norm_att",
-#                                      bias_initializer=tf.keras.initializers.Constant(inputs.bias_initializer))(x)
-#     # norm_att = tf.keras.layers.Dense(24, name="start_norm_att")(x)
-#     norm_att = tf.keras.activations.tanh(norm_att)
-#     norm_att = tf.keras.activations.softmax(norm_att, axis=-2)
-#     norm_att = tf.keras.layers.Lambda(lambda x: x, name='end_norm_att')(norm_att)
-#
-#     # Clipwise output
-#     clip = tf.math.reduce_sum(norm_att * segmentwise_output, axis=1)
-#     clip = tf.keras.layers.Lambda(lambda x: x, name="clip")(clip)
-#
-#     x_interp = tf.linspace(start=0.0, stop=interp_width - 1, num=interp_width)
-#     framewise = tfp.math.interp_regular_1d_grid(x=x_interp, x_ref_min=0.0, x_ref_max=interp_width,
-#                                                 y_ref=segmentwise_output,
-#                                                 axis=-2)
-#     framewise = tf.keras.layers.Lambda(lambda x: x, name="frame")(framewise)
-#
-#     output = [framewise, clip]
-#
-#     model = tf.keras.Model(inputs=base_model.input, outputs=output)
-#
-#     # Optimization
-#     opt = tf.keras.optimizers.Adam()
-#
-#
-#     # Loss Function
-#     loss_fn = [frame_loss_bce, clip_loss_bce]
-#
-#     # Compile the model
-#     model.compile(optimizer=opt,
-#                   loss=loss_fn,
-#                   loss_weights=inputs.loss_weights,
-#                   metrics=METRICS)
-#     return model
-
-
-# SED Models
+# Non-SED Models
 def no_sed_model(inputs):
     METRICS = [LWLRAP(24),
                tfa.metrics.F1Score(num_classes=24, average='micro', name='f1'),
                ]
-
-    # height = inputs.height
-    # width = inputs.width
 
     # Select model
     if inputs.model == 'ResNet34':
@@ -453,10 +312,6 @@ def no_sed_model(inputs):
         x = tf.keras.layers.Dense(inputs.fc_layer['num_hidden'], activation='relu')(x)
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.Dropout(inputs.fc_layer['dropout1'])(x)
-    # else:
-    #     x = tf.keras.layers.BatchNormalization()(x)
-    #     # x = tf.keras.layers.Dense(1280, activation='relu')(x)
-    #     x = tf.keras.layers.Dropout(0.4)(x)
 
     if inputs.bias_initializer is None:
         output = tf.keras.layers.Dense(24, activation='sigmoid')(x)
@@ -470,7 +325,6 @@ def no_sed_model(inputs):
     opt = tf.keras.optimizers.Adam()
 
     loss_fn = tf.keras.losses.BinaryCrossentropy(from_logits=False)
-    # loss_fn = [masked_loss_function]
 
     # Compile the model
     model.compile(optimizer=opt,

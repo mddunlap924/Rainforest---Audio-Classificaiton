@@ -1,12 +1,7 @@
 import pickle
 import os
-import random
 import numpy as np
-import misc_methods
-import matplotlib.pyplot as plt
-from dataset import Dataset
 import tensorflow as tf
-from sklearn.model_selection import StratifiedKFold
 from lwlrap import LWLRAP
 from HPTuning import model_setup
 from HPTuning import preprocess_dataset
@@ -73,10 +68,7 @@ def load_tf_model(data_folder, model_name, cp_folder, output_bias):
 
 # Preprocess Test TF Data
 def test_dataset(test_x, num_windows):
-    # Go from Test Class (created by Dunlap) to TF Dataset for preprocessing
-
-    # TODO organize TF dataset because its normalized by 6 and causes errors
-
+    # Go from Test Class to TF Dataset for preprocessing
     test_predictions = np.zeros([len(test_x), 24])
     test_set = tf.data.Dataset.from_tensor_slices((test_x, test_predictions))
     test_set = test_set.map(lambda image, label: preprocess_dataset.preprocess(image, label, seed=42, training=False))
@@ -158,18 +150,15 @@ def create_submission(y, file_names):
     sample_sub = pd.read_csv(sample_sub_path)
     file_names = [file_name[:-5] for file_name in file_names]
     recording_ids = sample_sub['recording_id'].tolist()
-
     if file_names == recording_ids:
         submission = sample_sub.copy()
         submission.iloc[:, 1:] = y
     print('Submission File was Created')
-
     return submission
 
 
 # Index Extraction for Test Data Predictions (performed b/c of memory limitation)
 def index_extraction_test_data(N, interval_size):
-
     A = np.arange(0, N, interval_size)
     B = []
     for i, _ in enumerate(A):
@@ -177,7 +166,6 @@ def index_extraction_test_data(N, interval_size):
             B.append([A[i], N])
         else:
             B.append([A[i], A[i + 1]])
-
     return B
 
 
@@ -200,10 +188,8 @@ for num in range(num_test_samples):
     test_X[sample_idx_start:sample_idx_end, :, :] = test.X[num]
 del test
 
-
 """ Index Values for Iterating Test Data Set """
 test_idxs = index_extraction_test_data(test_X.shape[0], INTERVAL_SIZE)
-
 
 """ List of Models to Use for Inference """
 list_of_models = list_of_models(DATA_FOLDER, MODEL)
@@ -235,5 +221,4 @@ submission_prediction = reshape_test_prediction(test_prediction)
 
 submission_df = create_submission(submission_prediction, test_file_names)
 submission_df.to_csv(os.path.join(os.path.join(DATA_FOLDER, MODEL), 'submission.csv'), index=False)
-print('Complete')
 print('End of Script')

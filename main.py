@@ -2,15 +2,13 @@ import pickle
 import os
 import random
 import numpy as np
-import misc_methods
 import matplotlib.pyplot as plt
-from dataset import Dataset
 import tensorflow as tf
 from sklearn.model_selection import StratifiedKFold
 from lwlrap import LWLRAP
 from Datasets.Mel_224_512.ResNeST50_R1 import model_setup
 from Datasets.Mel_224_512.ResNeST50_R1 import preprocess_dataset
-from keras_lr_finder import LRFinder
+
 
 # Plot Metrics
 def plot_few_metrics(history, save_path, lwlrap_score):
@@ -96,16 +94,6 @@ def score_lwlrap_batch(x, y, ds, model):
     features_true = np.array([x.numpy() for x, _ in ds_unbatch])
     labels_true = np.array([y.numpy() for _, y in ds_unbatch])
     lwlrap_score = lwlrap_metric(labels_true, model.predict(features_true))
-
-    # val_dataset = tf.data.Dataset.from_tensor_slices((x, y))
-    # val_dataset = val_dataset.map(lambda image, label: preprocess_dataset.preprocess(image, label, SEED,
-    #                                                                                  training=False))
-    # features_true = np.array([x.numpy() for x, _ in val_dataset])
-    # labels_true = np.array([y.numpy() for _, y in val_dataset])
-    # lwlrap_score = lwlrap_metric(labels_true, model.predict(features_true)[1])
-
-
-
     return lwlrap_score
 
 
@@ -117,7 +105,6 @@ def show_model_layers(x, y, model):
 
     data_in = np.expand_dims(features_true[0], 0)
     layer_nums = range(len(model.layers) - 20, len(model.layers), 1)
-    # layer_nums = range(len(model.layers) - 7, len(model.layers), 1)
     layer_outputs = {}
     for layer_num in layer_nums:
         intermediate_layer_model_output = tf.keras.Model(inputs=model.input, outputs=model.get_layer(
@@ -133,6 +120,7 @@ def show_model_layers(x, y, model):
 
     return layer_outputs
 
+
 # Seed everything
 def seed_everything(seed=42):
     random.seed(seed)
@@ -141,10 +129,7 @@ def seed_everything(seed=42):
     tf.random.set_seed(seed)
 
 
-
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-
-
 """ User Inputs """
 SEED = 42
 DATA_FOLDER = r'C:\Kaggle\RainForest_R0\Datasets\Mel_224_512'
@@ -206,15 +191,6 @@ for FOLD_IDX in range(FOLDS):
     # Get the model
     model = model_setup.resnest50(output_bias)
 
-    # # # https: // github.com / surmenok / keras_lr_finder / blob / master / examples / Example.ipynb
-    # lr_finder = LRFinder(model)
-    # train_set = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    # train_set = train_set.map(lambda image, label: preprocess_dataset.preprocess(image, label, SEED, training=True))
-    # X_TRAIN = np.array([x.numpy() for x, _ in train_set])
-    # Y_TRAIN = np.array([y.numpy() for _, y in train_set])
-    # lr_finder.find(X_TRAIN, Y_TRAIN, start_lr=1e-10, end_lr=1e-1, batch_size=BATCH_SIZE, epochs=80)
-    # lr_finder.plot_loss(n_skip_beginning=20, n_skip_end=5)
-
     # Callbacks for model
     x_shape = [x_train.shape[0], x_train.shape[1]]
     monitor = {'early_stop': 'val_loss',
@@ -229,8 +205,6 @@ for FOLD_IDX in range(FOLDS):
                         batch_size=BATCH_SIZE,
                         callbacks=callbacks,
                         verbose=1)
-
-    # layer_outputs = show_model_layers(x_val, y_val, model)
     lwlrap_val = score_lwlrap_batch(x_val, y_val, val_set, model)
     print(f'{save_h5_path}  Val. Score: {lwlrap_val} \n')
 

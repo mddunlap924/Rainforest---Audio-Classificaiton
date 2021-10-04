@@ -2,11 +2,6 @@
 # Note: layer_combination - 'Avg', 'Max', 'AvgMax'
 # Note: model - 'ResNet18', 'ResNet34', 'EfficientNetB0', 'EfficientNetB2', 'MobileNetV2'
 
-# lr_schedule: {'type': 'clr', 'clr_step': 4, 'mode': 'triangular'},
-# lr_schedule: {'type': 'sgd', 'lr_decay': 0.8, 'cycle_length': 5, 'mult_factor': 1.5},
-# lr_schedule: {'type': 'cwu', 'learning_rate': 1.5e-3, 'warmup_learning_rate': 1e-5, 'warmup_ratio': 0.25},
-# 'fc_layer': [{'dropout0': 0.4, 'num_hidden': 512, 'dropout1': 0.25}],
-
 def get_inputs():
     inputs = {
         'dataset': ['224_224_33', '224_224_53', '224_224_123'],
@@ -76,5 +71,3 @@ def get_inputs():
                                                                                                          }
                                                                             count += 1
     return model_combinations
-
-# print('End of Script')

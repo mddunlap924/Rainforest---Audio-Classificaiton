@@ -8,9 +8,9 @@ import HPTuning.hp_inference_sed4 as inference
 from lwlrap import LWLRAP
 import email_results
 import gc
-from dataset3 import Dataset
 
 
+# LWLRAP score
 def model_score(results, y_true, idxs):
     y_true_ = np.max(y_true, axis=-2)
     y_pred = np.empty([y_true.shape[0], y_true.shape[2]], dtype=float)
@@ -18,9 +18,10 @@ def model_score(results, y_true, idxs):
         y_pred[idx] = np.max(results[i]['y_predict']['frame'], axis=-2)
     lwlrap_metric = LWLRAP(24)
     lwlrap_score = lwlrap_metric(y_true_, y_pred).numpy()
-
     return lwlrap_score
 
+
+# If a non-sed model is used
 def model_score_no_sed(results, y_true, idxs):
     y_true_ = np.max(y_true, axis=-2)
     y_pred = np.empty([y_true.shape[0], y_true.shape[2]], dtype=float)
@@ -28,8 +29,8 @@ def model_score_no_sed(results, y_true, idxs):
         y_pred[idx] = results[i]['y_predict']['frame']
     lwlrap_metric = LWLRAP(24)
     lwlrap_score = lwlrap_metric(y_true_, y_pred).numpy()
-
     return lwlrap_score
+
 
 # Save python variables to cwd with given filename
 def save_pickle(save_folder, file_name, variables):
@@ -40,7 +41,6 @@ def save_pickle(save_folder, file_name, variables):
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 SEED = 42
-
 """ Load Model Inputs """
 hp_models = HP_Info.hp_combinations_to_run()
 
@@ -83,22 +83,21 @@ for hp_model in hp_models:
 del model_result, model_results
 gc.collect()
 
+""" INFERENCE """
+for i, hp_model in enumerate(hp_models):
+    """ To Only Make An Inference On Existing Dataset Load the Pickle File - Toggle/on/off for Code Editing """
+    # file = r'C:\Kaggle\RainForest_R0\HPTuning\224_512_1\ResNet18_SED\ResNet18_0\ResNet18_0.pickle'
+    file_name = hp_model.model + '_' + str(i) + '.pickle'
+    with open(os.path.join(hp_model.save_path, file_name), 'rb') as input_file:
+        save_variables = pickle.load(input_file)
 
-# """ INFERENCE """
-# for i, hp_model in enumerate(hp_models):
-#     """ To Only Make An Inference On Existing Dataset Load the Pickle File - Toggle/on/off for Code Editing """
-#     # file = r'C:\Kaggle\RainForest_R0\HPTuning\224_512_1\ResNet18_SED\ResNet18_0\ResNet18_0.pickle'
-#     file_name = hp_model.model + '_' + str(i) + '.pickle'
-#     with open(os.path.join(hp_model.save_path, file_name), 'rb') as input_file:
-#         save_variables = pickle.load(input_file)
-#
-#     # Create Submission Files
-#     inference.sed_inference(save_variables)
-#     print(f'Completed Everything for Model {hp_model.save_path}')
-#     del save_variables
-#     gc.collect()
+    # Create Submission Files
+    inference.sed_inference(save_variables)
+    print(f'Completed Everything for Model {hp_model.save_path}')
+    del save_variables
+    gc.collect()
 
 """ Send Email with Summary of Results """
 email_results.send_email()
 
-print('End HP Tuning SED')
+print('Script Complete')

@@ -26,7 +26,6 @@ def load_datasets(data_folder):
     test_data_path = os.path.join(data_folder, file_name_testing)
     with open(test_data_path, 'rb') as input_file:
         test = pickle.load(input_file)
-
     return train, test
 
 
@@ -34,7 +33,6 @@ def load_datasets(data_folder):
 def load_pickle(pickle_path):
     with open(pickle_path, 'rb') as input_file:
         variables = pickle.load(input_file)
-
     train_idx = variables['output']['train_idx']
     val_idx = variables['output']['val_idx']
     folds = variables['hp_model'].folds
@@ -46,17 +44,11 @@ def load_pickle(pickle_path):
 # Load Tensorflow model with weights
 def load_tf_model(inputs, model_name):
     model_weight_path = os.path.join(os.path.join(inputs.save_path, model_name), model_name + '.ckpt')
-
-    # if 'ResNet18' in inputs.model:
-    #     model = model_setup.resnet_model(inputs)
     if inputs.sed:
         model = model_setup.sed_model(inputs)
     else:
         model = model_setup.no_sed_model(inputs)
-
-    # model.load_weights(os.path.join(model_weight_folder, cp_folder + '.ckpt')).expect_partial()
     model.load_weights(model_weight_path)
-
     return model
 
 
@@ -177,9 +169,6 @@ def single_inference(tfmodel, model_input, model_name, val_x, val_y, test_x):
     print(f'Test Prediction Complete: Model {model_name}')
     del test_pred
     gc.collect()
-
-    # print(f'Time to Predict Test: {round(time.perf_counter() - tic, 2)} seconds')
-
     return test_predict, val_scores_single_model
 
 

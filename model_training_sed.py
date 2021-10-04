@@ -11,7 +11,6 @@ import tensorflow_probability as tfp
 import gc
 from misc_methods import plot_sed_few_metrics, plot_no_sed_few_metrics
 import math
-from dataset3 import Dataset
 
 
 # Save python variables to cwd with given filename
@@ -44,38 +43,11 @@ def load_data(data_folder, *, augment=False, fp=False):
     return train
 
 
-# # Show output from model layers for analysis
-# def show_model_layers(x, y, model, model_inputs):
-#     ds = tf.data.Dataset.from_tensor_slices((x, y))
-#     ds = ds.map(lambda image, label: preprocess_dataset.preprocess(image, label, 42, model_inputs, training=False))
-#     features_true = np.array([x.numpy() for x, _ in ds])
-#
-#     data_in = np.expand_dims(features_true[1], 0)
-#     layer_nums = range(len(model.layers) - 20, len(model.layers), 1)
-#     # layer_nums = range(len(model.layers) - 7, len(model.layers), 1)
-#     layer_outputs = {}
-#     for layer_num in layer_nums:
-#         intermediate_layer_model_output = tf.keras.Model(inputs=model.input, outputs=model.get_layer(
-#             index=layer_num).output)
-#         intermediate_layer_model_input = tf.keras.Model(inputs=model.input, outputs=model.get_layer(
-#             index=layer_num).input)
-#         intermediate_output = intermediate_layer_model_output.predict(data_in)
-#         intermediate_input = intermediate_layer_model_input.predict(data_in)
-#         layer_name = model.get_layer(index=layer_num).name
-#         layer_outputs[layer_num] = {'name': layer_name,
-#                                     'input': intermediate_input,
-#                                     'output': intermediate_output}
-#
-#
-#     return layer_outputs
-
-
 # Show output from model layers for analysis
 def show_model_layers(x, y, model, model_inputs):
     ds = tf.data.Dataset.from_tensor_slices((x, y))
     ds = ds.map(lambda image, label: preprocess_dataset.preprocess(image, label, 42, model_inputs, training=False))
     features_true = np.array([x.numpy() for x, _ in ds])
-
     data_in = np.expand_dims(features_true[1], 0)
     layer_outputs = {}
     layer_names = ['end_norm_att', 'frame', 'clip', 'segmentwise_output']
@@ -90,8 +62,6 @@ def show_model_layers(x, y, model, model_inputs):
         layer_outputs[i] = {'name': layer_name,
                                     'input': intermediate_input,
                                     'output': intermediate_output}
-
-
     return layer_outputs
 
 
@@ -101,12 +71,9 @@ def create_model_save_name(input, fold_num):
     save_path = os.path.join(input.save_path, model_name)
 
     # Create folder to save checkpoint data
-    # TODO could mess up here is upper directories exist
     if not os.path.exists(input.save_path):
         os.makedirs(input.save_path)
-
     file_path = os.path.join(save_path, model_name + '.ckpt')
-
     return file_path, model_name
 
 
@@ -121,7 +88,6 @@ def load_tf_model(model_path, input):
 
     # Load weights into the model
     model.load_weights(model_path)
-
     return model
 
 
@@ -150,11 +116,6 @@ def score_model(x, y, model_path, seed, model_input):
 
     model_eval_results['path'] = model_path
     model_pred = model.predict(x_ds)
-    # if isinstance(model_pred, list):
-    #     model_eval_results['y_predict'] = {'clip': model_pred[0]}
-    # if model_input.sed:
-    #     model_eval_results['y_predict'] = {'frame': model_pred[0],
-    #                                        'clip': model_pred[1]}
 
     if model_input.sed:
         model_eval_results['y_predict'] = {'frame': model_pred[0],
@@ -184,7 +145,6 @@ def mixup_no_sed(batch_size, alpha, images, labels):
       Mixup regularization applied.
     """
     NUM_CLASSES = 24
-
     if tf.random.uniform([]) < 0.5:
         # return images, (tf.zeros([batch_size, 1, NUM_CLASSES]), labels)
         return images, labels
@@ -193,12 +153,7 @@ def mixup_no_sed(batch_size, alpha, images, labels):
     images_mix_weight = tf.reshape(mix_weight, [batch_size, 1, 1, 1])
     # Mixup on a single batch is implemented by taking a weighted sum with the same batch in reverse.
     images_mix = (images * images_mix_weight + images[::-1] * (1. - images_mix_weight))
-    # labels_mix = labels * mix_weight + labels[::-1] * (1. - mix_weight)
-    # # return images_mix, labels_mix #images, labels
-    # return images_mix, (tf.zeros([batch_size, 1, NUM_CLASSES]), labels_mix) #images, labels
-
     labels_mix = tf.squeeze(labels * mix_weight + labels[::-1] * (1. - mix_weight))
-    # labels_mix = (labels * mix_weight + labels[::-1] * (1. - mix_weight))
     return images_mix, labels_mix #images, labels
 
 
@@ -220,10 +175,7 @@ def mixup(batch_size, alpha, images, labels):
     NUM_CLASSES = 24
 
     if tf.random.uniform([]) < 0.5:
-        # return images, (tf.zeros([batch_size, 1, NUM_CLASSES]), labels)
         return images, labels
-    # labels = tf.expand_dims(labels, axis=-1)
-    # print(f'lables {labels}')
     mix_weight = tfp.distributions.Beta(alpha, alpha).sample([batch_size, 1])
     mix_weight = tf.maximum(mix_weight, 1. - mix_weight)
     images_mix_weight = tf.reshape(mix_weight, [batch_size, 1, 1, 1])
@@ -243,8 +195,8 @@ def seed_everything(seed=42):
     tf.random.set_seed(seed)
 
 
+# Train the model
 def train_model(inputs, SEED):
-    # REMOVE_MULTILABELS = False
     CHECK_TRAIN_IMAGES = False
     FOLDS = inputs.folds
     BATCH_SIZE = inputs.batch_size
@@ -259,19 +211,11 @@ def train_model(inputs, SEED):
     train = load_data(DATA_FOLDER)
     X = train.X
     Y = train.Y
-    # train_file_names = train.file_names
-    # train_species = [str(i[0]) for i in train.species]
 
     if inputs.augment:
         train_augment = load_data(DATA_FOLDER, augment=True)
         X_aug = train_augment.X
         Y_aug = train_augment.Y
-
-    if inputs.fp:
-        train_fp = load_data(DATA_FOLDER, fp=True)
-        X_fp = train_fp.X
-        Y_fp = train_fp.Y
-
 
     """ Stratify data for training """
     # Y labels for stratified k-fold
@@ -293,24 +237,12 @@ def train_model(inputs, SEED):
         y_train = np.float32(Y[train_idx[FOLD_IDX]])
         x_val = np.float32(X[test_idx[FOLD_IDX]])
         y_val = np.float32(Y[test_idx[FOLD_IDX]])
-        # val_files_species = np.core.defchararray.add(np.array(train_file_names)[test_idx[FOLD_IDX]], \
-        #                     np.array(train_species)[test_idx[FOLD_IDX]])
         if inputs.augment:
             # Remove validation data from augmented files
             x_train_aug = np.float32(X_aug[train_idx[FOLD_IDX]])
             y_train_aug = np.float32(Y_aug[train_idx[FOLD_IDX]])
             x_train = np.concatenate((x_train, x_train_aug), axis=0)
             y_train = np.concatenate((y_train, y_train_aug), axis=0)
-
-            # # Mix between non-aug and aug
-            # np.random.seed(SEED)
-            # mix_idx = np.arange(x_train.shape[0])
-            # np.random.shuffle(mix_idx)
-            # idx_cut = int(len(mix_idx)/1.5)
-            # x_train = np.concatenate((x_train[0:idx_cut], x_train_aug[idx_cut:]), axis=0)
-            # y_train = np.concatenate((y_train[0:idx_cut], y_train_aug[idx_cut:]), axis=0)
-            # x_train = x_train
-            # y_train = y_train
 
         # Reduce y_train and y_val to (samples x classes) for no sed models
         if not inputs.sed:
@@ -350,9 +282,6 @@ def train_model(inputs, SEED):
         else:
             model = model_setup.no_sed_model(inputs)
 
-        # Show model layers prior to training
-        # model_layers = show_model_layers(x_val, y_val, model, inputs)
-
         # Callbacks for model
         x_shape = [x_train.shape[0], x_train.shape[1]]
         if inputs.sed:
@@ -365,8 +294,6 @@ def train_model(inputs, SEED):
         callbacks = model_setup.model_callbacks(x_shape, BATCH_SIZE, monitor, save_h5_path, inputs)
 
         print(f'{model_name}: Fold {FOLD_IDX + 1} of {FOLDS}')
-        # model.summary()
-        # steps_per_epoch = int((x_shape[0] / BATCH_SIZE))
         steps_per_epoch = int(math.ceil(x_shape[0] / BATCH_SIZE))
         history = model.fit(train_set,
                             validation_data=val_set,
@@ -375,9 +302,6 @@ def train_model(inputs, SEED):
                             steps_per_epoch=steps_per_epoch,
                             callbacks=callbacks,
                             verbose=1)
-
-        # # Show model layers after training
-        # model_layers = show_model_layers(x_val, y_val, model, inputs)
 
         # Evaluate Model from Checkpoint Weights
         result = score_model(x_val, y_val, save_h5_path, SEED, inputs)
