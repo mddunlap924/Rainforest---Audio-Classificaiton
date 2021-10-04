@@ -21,7 +21,7 @@ A Sound Event Detection (SED) [[1][1], [2][2]] task predicts the class and locat
 
 A SED model requires a custom architecture and loss function as provided in [model_setup_sed.py]().
 
-```
+```python
   for layer in base_model.layers:
         if inputs.base_trainable:
             layer.trainable = inputs.base_trainable
