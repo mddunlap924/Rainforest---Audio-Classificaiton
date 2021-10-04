@@ -17,7 +17,7 @@ The data is ~62GB and can be found on [Kaggle](https://www.kaggle.com/c/rfcx-spe
 
 A Sound Event Detection (SED) [[1][1], [2][2]] task predicts the class and location of the class within an audio clip. The following image illustrates a SED task and was taken from [[1][1]].
 
-![](https://github.com/mddunlap924/Rainforest---Audio-Classificaiton/tree/main/Images/SED.png)
+![](https://github.com/mddunlap924/Rainforest---Audio-Classificaiton/blob/main/Images/SED.png)
 
 A SED model requires a custom architecture and loss function as provided in [model_setup_sed.py]().
 
