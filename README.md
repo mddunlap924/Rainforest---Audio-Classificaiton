@@ -19,7 +19,7 @@ A Sound Event Detection (SED) [[1][1], [2][2]] task predicts the class and locat
 
 ![](https://github.com/mddunlap924/Rainforest---Audio-Classificaiton/blob/main/Images/SED.png)
 
-A SED model requires a custom architecture and loss function as provided in [model_setup_sed.py]().
+A SED model requires a custom architecture and loss function as provided in [model_setup_sed.py](https://github.com/mddunlap924/Rainforest---Audio-Classificaiton/blob/main/model_setup_sed.py).
 
 ```python
   for layer in base_model.layers:
